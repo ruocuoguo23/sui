@@ -1,62 +1,58 @@
-# Contributing to This Project
+<!-- Copyright (c) Mysten Labs, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
-Thanks for considering making a contribution to the Sui network or its documentation. Before you get started, please take a moment to read these guidelines.
+# Contributing to Dagora
 
-## Important Note
+Keep changes focused on the consensus-to-application boundary. The active
+workspace is described in [README.md](README.md); the
+[Sui archive](upstream/sui/README.md) is preserved reference material, outside
+the supported build. Retain upstream copyright and license notices.
 
-We appreciate contributions, but **simple typo fixes (e.g., minor spelling errors, punctuation changes, or trivial rewording) will be ignored** unless they significantly improve clarity or fix a critical issue. If you are unsure whether your change is substantial enough, consider opening an issue first to discuss it.
+## Development
 
-# How to Contribute
+Use the pinned Rust toolchain and install the native build dependencies listed
+in the README. Create a `codex/` branch when working through Codex. For behavioral
+changes, add meaningful tests covering normal behavior, key boundaries, and
+failure paths. Recovery changes need tests around both node journal persistence
+and application Commit persistence.
 
+```bash
+cargo fmt --all -- --check
+cargo build --locked -p dagora-node -p dagora-abci-mock
+cargo install cargo-nextest --locked
+SUI_SKIP_SIMTESTS=1 cargo nextest run --locked \
+  -p dagora-abci -p dagora-abci-mock -p dagora-core -p dagora-node \
+  -p consensus-config -p consensus-types -p consensus-core
+SUI_SKIP_SIMTESTS=1 cargo nextest run --locked -p consensus-simtests --lib
+python3 scripts/dagora/test_cluster.py
+python3 -m unittest discover -s scripts/simtest -p 'test_*.py' -v
+```
 
-## Documentation
+Run `cargo simtest -p consensus-simtests --profile ci --test-threads 1`
+through the patched runner for consensus simulation changes; installation and
+environment setup are in the README. Run Cargo writers sharing one workspace
+serially because the simulator runner temporarily patches and restores that
+workspace's lockfile. Run
+`python3 scripts/dagora/integration.py --duration 600` for changes spanning
+consensus, execution, and ABCI recovery. Hosted Ubuntu CI runs the complete
+acceptance suite, including restart with the same stored chain data.
 
-Found a small error or typo in the main documentation? Each page on the [docs.sui.io](https://docs.sui.io/) site includes an **Edit this page** link at the bottom that you can use to edit the page in GitHub. The content is located in the docs/content directory of the Sui repo, so you can make a PR if you prefer. 
+Do not update archived sources to make a Dagora change. Port the necessary
+behavior into active crates, keeping application-specific Sui types out of the
+Dagora execution interface. When documentation references archived files,
+link through `upstream/sui/`.
 
-For larger documentation issues, you can [create an issue](https://github.com/MystenLabs/sui/issues/new/choose) in GitHub. To fix the problem yourself, follow the [documentation contribution](./docs/content/references/contribute/contribution-process.mdx) guidelines.
+## Issues and pull requests
 
-If you change functionality, update the relevant documentation.
+For bugs, include the revision, OS, Rust version, reproduction steps, relevant
+logs, and expected/actual behavior. Include node and application heights when
+reporting recovery failures. Remove private keys and credentials from reports.
 
-Include examples where applicable.
+Describe the problem and the resulting behavior in a PR. State the checks
+actually performed and any missing coverage. Do not describe planned tests as
+passed. Include compatibility, migration, or known limitations when relevant.
 
-## Reporting Issues
+Commit messages use an English title and body with Background, Changes,
+Validation, and Risks when applicable. Match the level of detail to the change.
 
-Found a bug or security vulnerability? Please check the existing issues before opening a new one.
-
-Provide as much detail as possible, including steps to reproduce the issue, expected behavior, and actual behavior.
-
-## New Sui features
-
-If you want to contribute code that creates a feature on Sui, start with a [Sui Improvement Proposal](https://github.com/sui-foundation/sips/tree/main) before developing the logic.
-
-## New Sui Framework Contributions
-
-Want to contribute to the Sui framework? See [CONTRIBUTING.md](https://github.com/MystenLabs/sui/blob/main/crates/sui-framework/CONTRIBUTING.md) for information related to `sui-framework` crate contributions.
-
-## Proposing Code Changes
-
-Fork the repository and create a new branch for your changes. Ensure your branch is based on the latest main
-
-Follow the coding style and conventions used in the project.
-
-If your change is significant, please open an issue first to discuss it.
-
-## Submitting a Pull Request
-
-Ensure your changes are well-tested. Provide a clear description of your changes in the pull request.
-
-Reference any relevant issue numbers in your pull request. Be responsive to feedback from maintainers.
-
-## Code Standards
-
-Follow existing code structure and formatting.
-
-Write meaningful commit messages.
-
-Ensure all tests pass before submitting a pull request.
-
-# License
-
-By contributing, you agree that your contributions will be licensed under the same license as this project.
-
-Thank you for contributing!
+By contributing, you agree to license your contribution under [Apache-2.0](LICENSE).

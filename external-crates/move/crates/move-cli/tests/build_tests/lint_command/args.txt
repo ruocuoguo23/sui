@@ -1,3 +1,0 @@
-lint
-lint --mode custom
-> LC_ALL=C ls -A1

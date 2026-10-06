@@ -19,32 +19,29 @@
 
 set -euo pipefail
 
-# We compare the log output of two runs, so the check is only meaningful for tests that
-# emit a rich, deterministic log stream. test_net_determinism (start a network + fullnode,
-# send a transaction, sync it) produces ~7k deterministic sim/node log lines - a thorough
-# fingerprint of the whole stack. The other former check_determinism tests emit little or
-# nothing at this log level (the runtime canaries print only a debug! rng line that
-# init_for_testing suppresses), so log-comparison can't check them; running them here would
-# just add minutes of CI for no signal.
-BINARY_NAME="${BINARY_NAME:-simulator_tests}"
+# This consensus scenario starts validators, commits transactions, and catches up a
+# late validator, producing a deterministic log stream to compare across processes.
+BINARY_NAME="${BINARY_NAME:-consensus_tests}"
 TESTS=(
-  test_net_determinism
+  consensus_tests::test_committee_start_simple
 )
 SEED="${MSIM_TEST_SEED:-1}"
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd "$ROOT_DIR"
 
+TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/target}"
+
 # Locate the newest executable test binary built under the simulator profile.
 BIN=""
 while IFS= read -r f; do
   case "$f" in *.d) continue;; esac
   [ -x "$f" ] && { BIN="$f"; break; }
-done < <(ls -t "$ROOT_DIR"/target/simulator/deps/"${BINARY_NAME}"-* 2>/dev/null)
+done < <(ls -t "$TARGET_DIR"/simulator/deps/"${BINARY_NAME}"-* 2>/dev/null)
 
 if [ -z "$BIN" ]; then
-  echo "FAIL: could not find an executable '${BINARY_NAME}' binary under target/simulator/deps."
-  echo "Build it first, e.g.: scripts/simtest/cargo-simtest simtest --profile ci -p sui-e2e-tests"
+  echo "FAIL: could not find an executable '${BINARY_NAME}' binary under $TARGET_DIR/simulator/deps."
+  echo "Build it first: scripts/simtest/cargo-simtest simtest build -p consensus-simtests"
   exit 1
 fi
 
@@ -72,13 +69,11 @@ run() {
   echo "  running ${#TESTS[@]} determinism tests with MSIM_TEST_SEED=$SEED ..."
   set +e
   set -o pipefail
-  # RUST_LOG is set explicitly (not inherited): the CI job exports RUST_LOG=error,
-  # which would leave almost nothing to compare. The bulk of the comparable, deterministic
-  # output comes from test_net_determinism's node/sim logs (sui targets); the other tests
-  # run to completion under the same seed and their results are compared too.
+  # Set logging explicitly so an inherited RUST_LOG=error cannot leave an empty
+  # fingerprint of an otherwise successful simulation.
   MSIM_TEST_SEED="$SEED" \
   MSIM_WATCHDOG_TIMEOUT_MS="${MSIM_WATCHDOG_TIMEOUT_MS:-60000}" \
-  RUST_LOG="sui=debug,info" \
+  RUST_LOG="consensus_core=debug,consensus_simtests=debug,info" \
     "$BIN" --test-threads 1 --nocapture --exact "${TESTS[@]}" 2>&1 | normalize > "$out"
   local rc=${PIPESTATUS[0]}
   set +o pipefail

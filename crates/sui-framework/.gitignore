@@ -1,3 +1,0 @@
-# Move-related files
-# un-ignore the lock files for framework packages
-!packages/*/Move.lock

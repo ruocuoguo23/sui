@@ -9,21 +9,7 @@ use std::hash::Hasher;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-// Re-export things used by sui-macros
 pub use ::rand as rand_crate;
-pub use anemo;
-pub use anemo_tower;
-pub use fastcrypto;
-pub use lru;
-pub use move_package_alt;
-pub use move_package_alt_compilation;
-pub use mysten_network;
-pub use sui_framework;
-pub use sui_move_build;
-pub use sui_types;
-pub use telemetry_subscribers;
-pub use tempfile;
-pub use tower;
 
 #[cfg(msim)]
 pub mod configs {
@@ -146,12 +132,6 @@ macro_rules! return_if_killed {
 #[cfg(msim)]
 pub fn current_simnode_id() -> msim::task::NodeId {
     msim::runtime::NodeHandle::current().id()
-}
-
-pub fn has_mainnet_protocol_config_override() -> bool {
-    use sui_types::{digests::ChainIdentifier, supported_protocol_versions::Chain};
-
-    ChainIdentifier::default().chain() == Chain::Mainnet
 }
 
 #[cfg(msim)]

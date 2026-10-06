@@ -1,0 +1,16 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+txs: "ok"
+txs: "fail:test"
+decided_last_commit {
+  round: 2
+  votes {
+    validator { address: "validator" power: 1 }
+    block_id_flag: BLOCK_ID_FLAG_COMMIT
+  }
+}
+hash: "0123456789abcdef0123456789abcdef"
+height: 7
+time { seconds: 1700000000 nanos: 123 }
+next_validators_hash: "committee"
+proposer_address: "leader"

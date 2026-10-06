@@ -1,6 +1,0 @@
-node_modules/
-package-lock.json
-.deepbook-margin-id
-.deepbook-supplier-cap
-run-margin.mts
-run-compose.mts

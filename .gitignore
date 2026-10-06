@@ -90,3 +90,6 @@ docs/content/sui-stack/messaging/*.mdx
 !docs/content/sui-stack/messaging/index.mdx
 !docs/content/sui-stack/messaging/chat-app.mdx
 docs/site/static/sui-stack/
+
+# Retain every upstream reference file, including historical storage directories.
+!upstream/sui/**

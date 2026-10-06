@@ -21,7 +21,10 @@ mod consensus_tests {
         BlockAPI, BlockStatus, CommitIndex, CommitRef, CommittedSubDag, Priority,
         TransactionVerifier, ValidationError, storage::Store,
     };
-    use consensus_simtests::node::{AuthorityNode, Config};
+    use consensus_simtests::{
+        local_ip_utils,
+        node::{AuthorityNode, Config},
+    };
     use consensus_types::block::{BlockRef, BlockTimestampMs, TransactionIndex};
     use fastcrypto::traits::{KeyPair as _, ToFromBytes as _};
     use mysten_metrics::RegistryService;
@@ -30,7 +33,6 @@ mod consensus_tests {
     use parking_lot::Mutex;
     use prometheus::Registry;
     use rand::{Rng, SeedableRng as _, rngs::StdRng, seq::SliceRandom as _};
-    use sui_config::local_ip_utils;
     use sui_macros::{clear_fail_point, register_fail_points, sim_test};
     use sui_simulator::{
         SimConfig,

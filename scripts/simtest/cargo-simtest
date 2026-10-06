@@ -23,19 +23,52 @@ until grep -q '^\[workspace\]$' Cargo.toml 2> /dev/null; do
   MANIFEST_DIR=$(pwd)
 done
 
-# cd "$MANIFEST_DIR"
-# if ! git diff --quiet Cargo.lock; then
-#   echo "Please commit or revert your changes to Cargo.lock before running cargo simtest"
-#   exit 1
-# fi
 cd "$STARTING_DIR" || die "failed to cd to '$STARTING_DIR'"
 
-cleanup () (
-  cd "$MANIFEST_DIR" || die "failed to cd to '$MANIFEST_DIR'"
-  git checkout -- Cargo.lock > /dev/null
-)
+SIMTEST_LOCK_PATH="$MANIFEST_DIR/Cargo.lock"
+SIMTEST_BACKUP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cargo-simtest-lock.XXXXXX") || die "failed to create lockfile backup directory"
+SIMTEST_LOCK_BACKUP="$SIMTEST_BACKUP_DIR/Cargo.lock"
+if ! cp -p "$SIMTEST_LOCK_PATH" "$SIMTEST_LOCK_BACKUP"; then
+  rm -rf "$SIMTEST_BACKUP_DIR"
+  die "failed to back up '$SIMTEST_LOCK_PATH'"
+fi
+
+cleanup () {
+  local status=$?
+  trap - EXIT
+  trap '' HUP INT TERM
+  if [[ ! -d "$SIMTEST_LOCK_PATH" ]] && cp -p "$SIMTEST_LOCK_BACKUP" "$SIMTEST_LOCK_PATH" && cmp -s "$SIMTEST_LOCK_BACKUP" "$SIMTEST_LOCK_PATH"; then
+    rm -rf "$SIMTEST_BACKUP_DIR"
+  else
+    echo "$0: failed to restore '$SIMTEST_LOCK_PATH'; backup retained at '$SIMTEST_LOCK_BACKUP'" >&2
+    [[ "$status" -ne 0 ]] || status=1
+  fi
+  exit "$status"
+}
+
+handle_signal () {
+  local signal=$1 status=$2
+  trap '' HUP INT TERM
+  if [[ -n "$SIMTEST_CARGO_PID" ]]; then
+    kill -"$signal" "$SIMTEST_CARGO_PID" 2>/dev/null || true
+    wait "$SIMTEST_CARGO_PID" 2>/dev/null || true
+  fi
+  exit "$status"
+}
+
+run_cargo () {
+  cargo "$@" <&0 &
+  SIMTEST_CARGO_PID=$!
+  wait "$SIMTEST_CARGO_PID"
+  local status=$?
+  SIMTEST_CARGO_PID=
+  return "$status"
+}
 
 trap cleanup EXIT
+trap 'handle_signal HUP 129' HUP
+trap 'handle_signal INT 130' INT
+trap 'handle_signal TERM 143' TERM
 
 if [[ -z "$MSIM_WATCHDOG_TIMEOUT_MS" ]]; then
   export MSIM_WATCHDOG_TIMEOUT_MS=60000
@@ -76,7 +109,7 @@ if [[ -n "$USE_MOCK_CRYPTO" ]]; then
   )
 fi
 
-if ! cargo nextest --help > /dev/null 2>&1; then
+if ! run_cargo nextest --help > /dev/null 2>&1; then
   echo "nextest (https://nexte.st) does not appear to be installed. Please install before proceeding."
   echo "You can install it by running:"
   echo ""
@@ -98,13 +131,12 @@ export TMPDIR
 
 # Apply msim cfg flags via RUSTFLAGS env var rather than `--config build.rustflags`.
 # Cargo's RUSTFLAGS env var has *higher* priority than `--config build.rustflags`,
-# so when CI has already exported RUSTFLAGS (e.g. via .github/actions/setup-sccache
-# which exports -C link-arg=-fuse-ld=mold + baseline flags), a `--config` would be
+# so when CI has already exported RUSTFLAGS, a `--config` would be
 # silently ignored and `--cfg msim` wouldn't reach rustc. Appending to the existing
 # RUSTFLAGS env ensures both CI-supplied flags and the msim cfg end up on the
 # rustc command line together.
 export RUSTFLAGS="${RUSTFLAGS:-} $msim_rustflags"
 
-cargo "${cargo_command[@]}" \
+run_cargo "${cargo_command[@]}" \
   "${cargo_patch_args[@]}" \
   "$@"

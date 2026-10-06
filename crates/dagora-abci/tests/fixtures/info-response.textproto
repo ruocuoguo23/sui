@@ -1,0 +1,7 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+data: "fixture"
+version: "0.1.0"
+app_version: 1
+last_block_height: 7
+last_block_app_hash: "0123456789abcdef0123456789abcdef"

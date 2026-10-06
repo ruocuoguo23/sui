@@ -1,8 +1,0 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-
-module examples::main;
-
-public fun main() {
-    non_zero::non_zero::test();
-}

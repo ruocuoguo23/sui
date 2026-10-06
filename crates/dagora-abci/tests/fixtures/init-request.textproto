@@ -1,0 +1,6 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+time { seconds: 1700000000 }
+chain_id: "fixtures"
+app_state_bytes: "{}"
+initial_height: 1

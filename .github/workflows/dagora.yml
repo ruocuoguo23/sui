@@ -1,0 +1,88 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Dagora CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dagora-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  CARGO_PROFILE_SIMULATOR_DEBUG: "0"
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  runtime:
+    name: Rust and local cluster
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SUI_SKIP_SIMTESTS: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev cmake protobuf-compiler pkg-config libssl-dev
+          rustup component add rustfmt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+          fallback: none
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Build validator and application
+        run: cargo build --locked -p dagora-node -p dagora-abci-mock
+      - name: Test Dagora and ordinary consensus behavior
+        run: |
+          cargo nextest run --locked \
+            -p dagora-abci -p dagora-abci-mock -p dagora-core -p dagora-node \
+            -p consensus-config -p consensus-types -p consensus-core
+          cargo nextest run --locked -p consensus-simtests --lib
+      - name: Test cluster supervisor and simulator runner
+        run: |
+          python3 scripts/dagora/test_cluster.py
+          python3 -m unittest discover -s scripts/simtest -p 'test_*.py' -v
+      - name: Check failures, 600-second soak, and same-data recovery
+        run: python3 scripts/dagora/integration.py --duration 600 --dir "$RUNNER_TEMP/dagora-ci"
+      - name: Show cluster logs on failure
+        if: failure()
+        run: |
+          if [ -d "$RUNNER_TEMP/dagora-ci" ]; then
+            find "$RUNNER_TEMP/dagora-ci" -name '*.log' -print -exec tail -n 100 {} \;
+          fi
+
+  simulation:
+    name: Consensus simulations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      MSIM_TEST_SEED: "1"
+      MSIM_WATCHDOG_TIMEOUT_MS: "300000"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev cmake protobuf-compiler pkg-config libssl-dev
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+          fallback: none
+      - name: Use repository simulator runner
+        run: echo "$GITHUB_WORKSPACE/scripts/simtest" >> "$GITHUB_PATH"
+      - name: Run all consensus simulation scenarios
+        run: cargo simtest -p consensus-simtests --profile ci --test-threads 1

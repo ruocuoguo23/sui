@@ -1,74 +1,116 @@
-<p align="center">
-<img src="https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/docs/site/static/img/logo.svg" alt="Logo" width="100" height="100">
-</p>
+<!-- Copyright (c) Mysten Labs, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Welcome to Sui
+# Dagora
 
-[![Github release](https://img.shields.io/github/v/release/MystenLabs/sui.svg?sort=semver)](https://github.com/MystenLabs/sui/releases/latest)
-[![License](https://img.shields.io/github/license/MystenLabs/sui)](https://github.com/MystenLabs/sui/blob/main/LICENSE)
+Dagora is a small chain built on Sui's Mysticeti DAG consensus. Four equal-weight
+validators order opaque transaction bytes and send each finalized consensus
+commit to a separate Rust ABCI application. Empty commits also produce application
+blocks. The application owns execution and state; the node persists blocks,
+receipts, and an execution cursor for restart recovery.
 
-[Sui](https://sui.io) is a next-generation smart contract platform with high throughput, low latency, and an asset-oriented programming model powered by the [Move programming language](https://github.com/MystenLabs/awesome-move).
+The consensus baseline is Sui `mainnet-v1.80.1`, commit
+`782577ca40c9ef0b3f400ade8bc2cc2dcd0e2b23`. The active Rust workspace contains
+22 packages: four consensus packages, four Dagora packages, and fourteen
+support packages for storage, networking, cryptography, metrics, macros, and
+simulation. Sui product applications, SDKs, Move execution, indexers, and their
+build tooling are outside this workspace.
 
-## Sui Highlights
+| Path | Purpose |
+| --- | --- |
+| `consensus/` | Mysticeti DAG, commit ordering, consensus storage, and simulation tests |
+| `crates/dagora-core/` | Deterministic application blocks, durable execution journal, executor boundary |
+| `crates/dagora-node/` | Validator binary, ABCI client, local transaction/status/block HTTP API |
+| `crates/dagora-abci/` | Official CometBFT v0.38.22 protobuf schemas and shared Rust bindings |
+| `crates/dagora-abci-mock/` | Separate deterministic Rust application with durable state |
+| `scripts/dagora/` | Local cluster supervisor and acceptance checks |
+| `upstream/sui/` | Source reference archive for future checkpoint, epoch, and state sync work |
 
-Sui offers the following benefits and capabilities:
+The [reference archive](upstream/sui/README.md) preserves original paths and
+copyright notices. Its [manifest](upstream/sui/manifest.json) records source
+paths, byte lengths, and SHA-256 hashes. It is retained for reading and later
+ports; its original Sui manifests and tests are not a supported build target.
 
- * Unmatched scalability, instant settlement
- * A safe smart contract language accessible to mainstream developers
- * Ability to define rich and composable on-chain assets
- * Better user experience for web3 apps
+## Run a local network
 
-Sui is the only blockchain today that can scale with the growth of web3 while achieving industry-leading performance, cost, programmability, and usability. Sui demonstrates capacity beyond the transaction processing capabilities of established systems – traditional and blockchain alike. Sui is the first internet-scale programmable blockchain platform, a foundational layer for web3.
+Use the Rust version pinned in [rust-toolchain.toml](rust-toolchain.toml).
+Building requires `protoc`, a C/C++ toolchain, CMake, libclang, and OpenSSL
+development files. On Ubuntu:
 
-## Sui Architecture
-
-```mermaid
-flowchart LR
-    CC(CLI Client) --> ClientService
-    RC(Rest Client) --> ClientService
-    RPCC(RPC Client) --> ClientService
-    ClientService --> AuthorityAggregator
-    AuthorityAggregator --> AC1[AuthorityClient] & AC2[AuthorityClient]
-    subgraph Authority1
-      AS[AuthorityState]
-    end
-    subgraph Authority2
-      AS2[AuthorityState]
-    end
-    AC1 <==>|Network TCP| Authority1
-    AC2 <==>|Network TCP| Authority2
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential clang libclang-dev cmake protobuf-compiler pkg-config libssl-dev
+cargo build --locked -p dagora-node -p dagora-abci-mock
+bash scripts/dagora/start.sh --dir /tmp/dagora-local --port-base 26000
+target/debug/dagora-node status --url http://127.0.0.1:26010
+target/debug/dagora-node submit --url http://127.0.0.1:26010 --tx 'hello'
+target/debug/dagora-node submit --url http://127.0.0.1:26010 --tx 'fail:example'
+target/debug/dagora-node block --url http://127.0.0.1:26010 --height 1
+bash scripts/dagora/stop.sh --dir /tmp/dagora-local
 ```
 
-## Sui Overview
+Starting with the same directory resumes existing keys, consensus storage,
+execution journals, and application state. Without `--port-base`, the starter
+chooses available ports and prints each HTTP URL. For a custom Cargo target
+directory, pass `--bin-dir PATH` to the scripts.
 
-Sui is a smart contract platform maintained by a permissionless set of authorities that play a role similar to validators or miners in other blockchain systems.
+The mock accepts `fail:` transactions at admission and returns execution code 1
+while committing the block. Other valid transactions return code 0. Its app hash
+is `SHA256(previous_app_hash || block_hash)`, starting from 32 zero bytes.
+Submission acknowledges proposal inclusion; inspect the persisted block receipt
+to confirm execution.
 
-Sui offers scalability and unprecedented low-latency for common use cases. Sui makes the vast majority of transactions processable in parallel, which makes better use of processing resources, and offers the option to increase throughput with more resources. Sui forgoes consensus to instead use simpler and lower-latency primitives for common use cases, such as payment transactions and asset transfers. This is unprecedented in the blockchain world and enables a number of new latency-sensitive distributed applications, ranging from gaming to retail payment at physical points of sale.
+See the [pruning report](crates/dagora-node/PRUNING.md),
+[validation record](crates/dagora-node/VALIDATION.md),
+the [node guide](crates/dagora-node/README.md),
+[durability and recovery model](crates/dagora-core/README.md), and
+[ABCI schema provenance](crates/dagora-abci/UPSTREAM.md).
 
-Sui is written in [Rust](https://www.rust-lang.org) and supports smart contracts written in the [Move programming language](https://github.com/move-language/move) to define assets that may have an owner. Move programs define operations on these assets including custom rules for their creation, the transfer of these assets to new owners, and operations that mutate assets.
+## Check changes
 
-Sui has a native token called SUI, with a fixed supply. The SUI token is used to pay for gas, and is also used as [delegated stake on authorities](https://learn.bybit.com/blockchain/delegated-proof-of-stake-dpos/) within an epoch. The voting power of authorities within this epoch is a function of this delegated stake. Authorities are periodically reconfigured according to the stake delegated to them. In any epoch, the set of authorities is [Byzantine fault tolerant](https://pmg.csail.mit.edu/papers/osdi99.pdf). At the end of the epoch, fees collected through all transactions processed are distributed to authorities according to their contribution to the operation of the system. Authorities can in turn share some of the fees as rewards to users that delegated stakes to them.
+```bash
+cargo fmt --all -- --check
+cargo install cargo-nextest --locked
+SUI_SKIP_SIMTESTS=1 cargo nextest run --locked \
+  -p dagora-abci -p dagora-abci-mock -p dagora-core -p dagora-node \
+  -p consensus-config -p consensus-types -p consensus-core
+SUI_SKIP_SIMTESTS=1 cargo nextest run --locked -p consensus-simtests --lib
+python3 scripts/dagora/test_cluster.py
+python3 -m unittest discover -s scripts/simtest -p 'test_*.py' -v
+export PATH="$PWD/scripts/simtest:$PATH"
+MSIM_TEST_SEED=1 MSIM_WATCHDOG_TIMEOUT_MS=300000 \
+  cargo simtest -p consensus-simtests --profile ci --test-threads 1
+python3 scripts/dagora/integration.py --duration 600
+```
 
-Sui is supported by several cutting-edge [peer-reviewed studies](https://github.com/MystenLabs/sui/blob/main/docs/content/concepts/research-papers.mdx) and extensive years of open-source development.
+Run simulator tests through `cargo simtest`; ordinary test execution does not
+exercise their simulated network. The simulator runner applies pinned dependency
+patches, backs up and restores the workspace lockfile, and uses a fresh runtime
+temporary directory. Run Cargo commands sharing this workspace serially; no
+other Cargo writer may run while the simulator runner owns the lockfile.
+The consensus suite includes twelve integration simulation scenarios.
 
-## More About Sui
+The acceptance script checks matching blocks and receipts, successful and
+failed transactions, progress with one validator offline, a halt with two
+offline, node/application restart recovery, and recovery when the application
+persists Commit but loses its reply. It then checks ten minutes of progress and
+agreement and resumes the whole cluster using the same data directory.
+Use `--duration 0` to omit the soak. GitHub CI runs these checks on hosted Ubuntu.
 
-Use the following links to learn more about Sui and the Sui ecosystem:
+## Current limits
 
- * Learn more about working with Sui in the [Sui Documentation](https://docs.sui.io/).
- * Join the Sui community on [Sui Discord](https://discord.gg/sui).
- * Find out more about the Sui ecosystem on the [Sui Resources](https://sui.io/resources/) page.
- * Review information about Sui governance, [decentralization](https://suifoundation.org/decentralization), and [Developer Grants Program](https://sui.io/grants-hub) on the [Sui Foundation](https://sui.io/about) site.
+V1 fixes the committee at epoch 0. It has no signed checkpoint service, committee
+rotation, or application state sync. HTTP ingress is local and unauthenticated;
+payloads are nonempty UTF-8 bytes up to 256 KiB. Transaction voting and slim
+propagation are disabled. Application updates to validators or consensus
+parameters stop the node with an error.
 
+The wire boundary uses CometBFT v0.38.22 ABCI gRPC, with `Info`, `InitChain`,
+`CheckTx`, `FinalizeBlock`, and `Commit`. The mock does not run Cosmos SDK or a
+second consensus process. A real Cosmos SDK application has not been validated;
+Tendermint block hashes, light clients, vote extensions, and snapshots require
+additional integration work. Local execution receipts are not certified
+checkpoints.
 
- ## How to Contribute
-
- See the [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to Sui.
-
- ## Code of Conduct
-
- See the [Code of Conduct](CODE_OF_CONDUCT.MD) for details on our code of conduct.
-
- ## License
-
- See the [LICENSE](LICENSE) file for more details.
+Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md). Code is licensed under
+[Apache-2.0](LICENSE); archived documentation retains its [documentation license](upstream/sui/LICENSE-docs).

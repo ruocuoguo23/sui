@@ -1,0 +1,23 @@
+[package]
+name = "dagora-abci"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+prost.workspace = true
+prost-types.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+
+[build-dependencies]
+tonic-prost-build.workspace = true
+
+[dev-dependencies]
+hex.workspace = true
+sha2 = "0.10"
+tokio = { workspace = true, features = ["macros", "rt"] }

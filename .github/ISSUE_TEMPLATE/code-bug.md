@@ -1,34 +1,25 @@
 ---
-name: Sui Code Bug
-about: Create a new software bug for issues encountered running Sui
-title: 'Sui Code Bug or Feature Request'
+name: Dagora bug
+about: Report a reproducible consensus, execution, or ABCI issue
+title: ''
 labels: bug
 assignees: ''
 ---
 
-## Steps to Reproduce Issue
+## Reproduction
 
-Fill this in with the concrete steps needed to reproduce the bug. When providing code in the reproduction steps, use the smallest snippet of code that demonstrates the issue, removing any extraneous details.
+Include the revision, commands or minimal inputs, and whether the data directory
+was fresh or resumed.
 
-e.g.
-1. Call function <function call>.
-2. Use return value and call <other function call>.
+## Expected behavior
 
-## Expected Result
+## Actual behavior
 
-Specify what outcome you expected should have resulted, but didn't.
+For recovery issues, include node execution height, consensus commit index,
+application height/hash, and relevant logs. Remove private keys and credentials.
 
-e.g.
-Expected <other function call> to return 42.
+## Environment
 
-## Actual Result
-
-Specify what the actual unexpected outcome was.
-
-e.g.
-<other function call> returned 41.
-
-## System Information
-
-* OS: <specify OS version>
-* Compiler: <specify compiler version>
+- OS:
+- Rust version:
+- Revision:

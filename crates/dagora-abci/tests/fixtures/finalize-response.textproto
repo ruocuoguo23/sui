@@ -1,0 +1,5 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+tx_results { code: 0 data: "ok" gas_wanted: 3 gas_used: 2 }
+tx_results { code: 1 data: "bad" codespace: "mock" }
+app_hash: "0123456789abcdef0123456789abcdef"

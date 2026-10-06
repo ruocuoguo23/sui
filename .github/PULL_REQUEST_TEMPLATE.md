@@ -1,24 +1,16 @@
-## Description 
+## Background
 
-Describe the changes or additions included in this PR.
+What concrete problem does this change address?
 
-## Test plan 
+## Changes
 
-How did you test the new or updated feature?
+Describe the resulting behavior and relevant compatibility or migration changes.
 
----
+## Validation
 
-## Release notes
+List the checks actually run and their results. Identify any missing coverage.
+For consensus/execution changes, include simulation and local cluster recovery checks.
 
-Check each box that your changes affect. If none of the boxes relate to your changes, release notes aren't required.
+## Risks
 
-For each box you select, include information after the relevant heading that describes the impact of your changes that a user might notice and any actions they must take to implement updates. 
-
-- [ ] Protocol: 
-- [ ] Nodes (Validators and Full nodes): 
-- [ ] gRPC:
-- [ ] JSON-RPC: 
-- [ ] GraphQL: 
-- [ ] CLI: 
-- [ ] Rust SDK:
-- [ ] Indexing Framework:
+Describe any protocol, storage-format, ABCI compatibility, or recovery limitations.

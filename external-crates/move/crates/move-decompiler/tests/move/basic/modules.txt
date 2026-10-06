@@ -1,4 +1,0 @@
-enums
-funs
-structs
-vec

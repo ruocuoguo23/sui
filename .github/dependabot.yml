@@ -1,22 +1,10 @@
-#
-# Dependabot configuration file
-#
-
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
+  - package-ecosystem: cargo
+    directory: /
     schedule:
-      interval: "daily"
-
-  - package-ecosystem: "npm"
-    directory: "/"
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "weekly"
-    # Disable version updates for npm dependencies
-    open-pull-requests-limit: 0
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
+      interval: weekly
